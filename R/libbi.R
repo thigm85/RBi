@@ -189,11 +189,14 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
       warning("'model-file' and 'model' options both provided. Will ignore 'model-file'.")
     }
   } else if (!is_empty(x$model)) {
-    x$model_file_name <-
-      tempfile(pattern=paste(get_name(x$model), "model", sep = "_"),
-               fileext=".bi",
-               tmpdir=absolute_path(x$working_folder))
-    write_model(x)
+    if (length(x$model_file_name) == 0 ||
+        !all((x$model == bi_model(x$model_file_name))[-1])) {
+      x$model_file_name <-
+        tempfile(pattern=paste(get_name(x$model), "model", sep = "_"),
+                 fileext=".bi",
+                 tmpdir=absolute_path(x$working_folder))
+      write_model(x)
+    }
   }
 
   ## read file options: input, init, obs
@@ -205,7 +208,8 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
 
   file_options <- list()
 
-  if (x$run_flag && chain) {
+  if (x$run_flag && length(x$output_file_name) == 1 &&
+      file.exists(x$output_file_name)) {
     init_file_given <-
       "init" %in% file_args || "init-file" %in% names(new_options)
     init_np_given <- "init-np" %in% names(new_options)
@@ -259,6 +263,8 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
     if (class(arg) == "libbi") {
       if (!arg$run_flag) {
         stop("The libbi object for '", arg, "' should be run first (using sample, filter or optimise).")
+      } else if (length(arg$output_file_name) == 0 || !file.exists(arg$output_file_name)) {
+        stop("The libbi object for '", arg, "' does not contain an output file.")
       }
       file_options[[paste(file, "file", sep = "-")]] <-
         arg$output_file_name
@@ -477,8 +483,10 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
       model_lines <- model_lines[first_model_line:length(model_lines)]
       x <- bi_model(lines=model_lines)
     } else {
-      x$run_flag <- file.exists(x$output_file_name)
-      if (x$run_flag) x$timestamp <- file.mtime(x$output_file_name)
+      x$run_flag <- TRUE
+      if (x$run_flag && file.exists(x$output_file_name)) {
+        x$timestamp <- file.mtime(x$output_file_name)
+      }
       ## set model name back to original name
       set_name(x$model, model_name)
     }
@@ -824,6 +832,9 @@ assert_output.libbi <- function(x, ...)
 {
     if (!x$run_flag) {
       stop("The libbi object must be run first (using sample, filter or optimise).")
+    }
+    if (length(x$output_file_name) == 0 || !file.exists(x$output_file_name)) {
+      stop("The libbi object for does not contain an output file.")
     }
     if (x$timestamp < file.mtime(x$output_file_name)) {
       stop("Output file ", x$output_file_name, " has been modified since LibBi was run.")
