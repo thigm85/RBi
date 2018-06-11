@@ -399,7 +399,8 @@ run.libbi <-  function(x, client, proposal=c("model", "prior"), model, fix, opti
         run_model_modified <- TRUE
       }
     }
-    if (run_model_modified) {
+    #if (run_model_modified) {
+    if (FALSE) {
       run_model_file_name <-
         tempfile(pattern=paste(get_name(run_model), "model", sep = "_"),
                  fileext=".bi",
